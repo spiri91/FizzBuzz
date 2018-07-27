@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 
 
 /*
@@ -18,75 +15,45 @@ namespace FizzBuzzProblem
     {
         private static void Main()
         {
-            var range = Enumerable.Range(1, 100);
+            var iterator = Enumerable.Range(1, 100).GetEnumerator();
             var conditions = GetConditionActions();
+            var params_List = new object[1];
 
-            var iterator = range.GetEnumerator();
             while (iterator.MoveNext())
             {
                 string result = string.Empty;
-                conditions.ToList().ForEach(c =>
-                {
 
-                    result += c.InvokeMember("GetResult", BindingFlags.InvokeMethod | BindingFlags.Public, null, c, new object[] { (object)iterator.Current }).ToString();
+                conditions.ForEach(c =>
+                {
+                    params_List.SetValue(iterator.Current, 0);
+
+                    result += c.GetMethod("GetResult").Invoke(Activator.CreateInstance(c, null), new object[] { params_List });
                 });
 
-                if (String.IsNullOrWhiteSpace(result)) result = iterator.Current.ToString();
-
-                Console.WriteLine(result);
+                Console.WriteLine(string.IsNullOrWhiteSpace(result) ? iterator.Current.ToString() : result);
             }
 
             Console.ReadKey();
         }
 
-        private static IEnumerable<Type> GetConditionActions()
-        {
-            var type = typeof(ICheckCondition);
-            var types = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(s => s.GetTypes())
-                .Where(p => type.IsAssignableFrom(p) && !p.IsInterface);
-
-            return types;
-        }
-    }
-
-    public class CheckForFizz : ICheckCondition
-    {
-        public CheckForFizz() { }
-
-        public string GetResult(object[] val)
-        {
-            if (val.Length == 0) return string.Empty;
-
-            var _ = (int)val[0];
-
-            if (_ % 3 == 0)
-                return "Fizz";
-
-            return string.Empty;
-        }
-    }
-
-    public class CheckForBuzz : ICheckCondition
-    {
-        public CheckForBuzz() { }
-
-        public string GetResult(object[] val)
-        {
-            if (val.Length == 0) return string.Empty;
-
-            var _ = (int)val[0];
-
-            if (_ % 5 == 0)
-                return "Buzz";
-
-            return string.Empty;
-        }
+        private static List<Type> GetConditionActions() =>
+            AppDomain.CurrentDomain.GetAssemblies().SelectMany(s => s.GetTypes())
+            .Where(p => typeof(ICheckCondition).IsAssignableFrom(p) && !p.IsInterface).ToList();
     }
 
     public interface ICheckCondition
     {
         string GetResult(object[] val);
+    }
+
+    public class CheckForFizz : ICheckCondition
+    {
+        public string GetResult(object[] val) => (val.Length != 0 && (int)val[0] % 3 == 0) ? "Fizz" : string.Empty;
+    }
+
+    public class CheckForBuzz : ICheckCondition
+    {
+        public string GetResult(object[] val) => (val.Length != 0 && (int)val[0] % 5 == 0) ? "Buzz" : string.Empty;
     }
 }
 
